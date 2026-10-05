@@ -1,13 +1,15 @@
 //! FilmCraft desktop app.
 //!
-//! Usage: `filmcraft [--control <port>] [--demo|--empty] [--recover|--no-recover] [--data-dir <dir>]
-//! [project.fcproj | media files…]`
+//! Usage: `filmcraft [--control <port>] [--control-token <64-hex> | --control-token-file <path>]
+//! [--demo|--empty] [--recover|--no-recover] [--data-dir <dir>] [project.fcproj | media files…]`
 //!
 //! Without a project, `--demo` or `--empty`, Settings ▸ General ▸ At Startup decides: Show Home
 //! (the demo project), Open Most Recent, or an empty project.
 //!
-//! `--control <port>` (or `FILMCRAFT_CONTROL_PORT`) starts a localhost JSON-lines control server;
-//! see `filmcraft_ui_egui::control` for the methods.
+//! `--control <port>` (or `FILMCRAFT_CONTROL_PORT`) starts a localhost JSON-lines control server.
+//! The first line on each connection must authenticate (`SECURITY.md`). With no token, a new one
+//! is printed once; `--control-token-file` (or `FILMCRAFT_CONTROL_TOKEN_FILE`) loads or creates a
+//! private file instead. See `filmcraft_ui_egui::control` for the methods.
 //!
 //! Auto-save and the crash-recovery journal run in every session (data in `--data-dir`, else
 //! `FILMCRAFT_DATA_DIR`, else the per-user application data folder). If a previous session died
@@ -48,6 +50,8 @@ fn app_icon() -> egui::IconData {
 fn main() -> eframe::Result {
     app_nap::disable();
     let mut control_port: Option<u16> = std::env::var("FILMCRAFT_CONTROL_PORT").ok().and_then(|p| p.parse().ok());
+    let mut control_token = None;
+    let mut control_token_file = None;
     let mut files = Vec::new();
     let mut demo = true;
     // --demo / --empty given: skip Settings ▸ General ▸ At Startup
@@ -58,6 +62,20 @@ fn main() -> eframe::Result {
     while let Some(a) = args.next() {
         match a.as_str() {
             "--control" => control_port = args.next().and_then(|p| p.parse().ok()),
+            "--control-token" => match args.next() {
+                Some(token) => control_token = Some(token),
+                None => {
+                    eprintln!("filmcraft: --control-token requires a 64-character hexadecimal token");
+                    return Ok(());
+                }
+            },
+            "--control-token-file" => match args.next() {
+                Some(path) => control_token_file = Some(std::path::PathBuf::from(path)),
+                None => {
+                    eprintln!("filmcraft: --control-token-file requires a path");
+                    return Ok(());
+                }
+            },
             "--demo" => (demo, startup_flag) = (true, true),
             "--empty" => (demo, startup_flag) = (false, true),
             "--recover" => recover = Some(true),
@@ -70,6 +88,27 @@ fn main() -> eframe::Result {
             _ => files.push(a),
         }
     }
+    let control = if let Some(port) = control_port {
+        let (supplied, token_file) = filmcraft_automation::security::token_inputs(control_token, control_token_file);
+        let token = match filmcraft_automation::security::server_token(supplied.as_deref(), token_file.as_deref()) {
+            Ok(token) => token,
+            Err(e) => {
+                eprintln!("filmcraft: cannot configure control authentication: {e}");
+                return Ok(());
+            }
+        };
+        if let Some(path) = &token_file {
+            eprintln!("filmcraft: control token file: {}", path.display());
+        } else if supplied.is_none() {
+            // Printed once so the operator can hand it to a local bridge. Not written to disk.
+            eprintln!("filmcraft: control token: {token}");
+        } else {
+            eprintln!("filmcraft: using supplied control token");
+        }
+        Some((port, token))
+    } else {
+        None
+    };
     // Panics anywhere go to <data dir>/Logs/crash-<day>.log with a backtrace; the UI pass and
     // frame workers catch them and keep running (see filmcraft_ui_egui::crash).
     filmcraft_ui_egui::crash::install(data_dir.clone().or_else(default_data_dir).map(|d| d.join("Logs")));
@@ -177,8 +216,8 @@ fn main() -> eframe::Result {
                 app.hooks.shortcuts_changed = Some(update);
                 app.ui.show_menu_bar = false;
             }
-            if let Some(port) = control_port {
-                let rx = control_server::start(port, cc.egui_ctx.clone());
+            if let Some((port, token)) = control {
+                let rx = control_server::start(port, token, cc.egui_ctx.clone());
                 app = app.with_control(rx);
             }
             Ok(Box::new(app))

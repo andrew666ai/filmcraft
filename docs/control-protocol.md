@@ -2,7 +2,12 @@
 
 ## Desktop control channel
 `filmcraft --control 9876` (or `FILMCRAFT_CONTROL_PORT`) listens on `127.0.0.1:<port>` (loopback only).
-One JSON request per line → one JSON reply per line. The app opts out of macOS App Nap
+One JSON request per line → one JSON reply per line. The first line must be
+`{"id":1,"method":"auth","params":{"token":"<64 hex>"}}`; other methods are refused until that
+succeeds. Pass the token with `--control-token-file` / `FILMCRAFT_CONTROL_TOKEN_FILE` (preferred),
+`--control-token` / `FILMCRAFT_CONTROL_TOKEN`, or let the app print a generated token once.
+See [SECURITY.md](../SECURITY.md). At most 16 connections, 1 MiB per request line, 8 MiB per reply.
+The app opts out of macOS App Nap
 (`apps/filmcraft/src/app_nap.rs`): a hidden window would otherwise drop the whole process to
 background priority, and on a busy machine it would stop answering.
 

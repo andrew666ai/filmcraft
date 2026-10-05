@@ -18,6 +18,7 @@ whisper = ["filmcraft-engine/whisper", "filmcraft-engine/speech-download"]
 [dependencies]
 filmcraft-engine = { workspace = true }
 filmcraft-ui-egui = { workspace = true }
+filmcraft-automation = { workspace = true }
 egui = { workspace = true }
 eframe = { workspace = true, features = ["default_fonts", "wgpu", "accesskit", "wayland", "x11"] }
 serde_json = { workspace = true }

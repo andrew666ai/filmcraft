@@ -605,8 +605,8 @@ All of these dispatch the same command ids.
 |---|---|---|
 | UI | `ui-egui` menus, shortcuts, panels | `menus::invoke` → engine or UI command |
 | CLI | `filmcraft-cli` | `exec <id> key=value…`, `run script.jsonl` (one `{"id","params"}` per line), `inspect`, `import`, `export`, `render`, `probe`; `--save`, `--bridge` |
-| Control channel | `filmcraft --control <port>` | JSON lines on loopback TCP: engine commands plus synthetic input, inspection and screenshots of the live UI |
-| MCP | `filmcraft-cli mcp` | stdio MCP server: headless in-process session, or `--bridge` to the control channel |
+| Control channel | `filmcraft --control <port>` | JSON lines on loopback TCP. A bearer token is required before any method. Engine commands plus synthetic input, inspection and screenshots of the live UI |
+| MCP | `filmcraft-cli mcp` | stdio MCP server (preferred): headless in-process session, or `--bridge` to the control channel with the same token |
 
 - **Automation ids.** Every interactive widget calls `app.auto.add(id, rect, label)` each frame
   (`crates/ui-egui/src/automation.rs`). Agents click by id, e.g. `tools.Razor`,

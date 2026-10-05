@@ -12,14 +12,16 @@ FilmCraft from an agent. Part 2 covers developing FilmCraft as an agent.
 | Mode | Command | What it drives |
 |---|---|---|
 | Headless | `filmcraft-cli mcp --demo` or `--project p.fcproj` (neither = empty project) | an in-process engine session, no window |
-| Bridge | `filmcraft-cli mcp --bridge 127.0.0.1:9876` | the running desktop app started with `filmcraft --control 9876` |
+| Bridge | `filmcraft-cli mcp --bridge 127.0.0.1:9876` | the running desktop app started with `filmcraft --control 9876` and the same bearer token |
 
 **Claude Code.** The repository's `.mcp.json` registers both servers (`filmcraft` = bridge,
 `filmcraft-headless` = demo). Both point at `target/release/filmcraft-cli`, so build it first:
 
 ```sh
 cargo build --release -p filmcraft-cli -p filmcraft
-./target/release/filmcraft --control 9876 &      # only for the bridge server
+mkdir -p ~/.config/filmcraft
+./target/release/filmcraft --control 9876 --control-token-file ~/.config/filmcraft/control-token &
+export FILMCRAFT_CONTROL_TOKEN_FILE=~/.config/filmcraft/control-token
 claude                                           # approve the project MCP servers when asked
 ```
 
@@ -30,8 +32,10 @@ claude mcp add filmcraft-headless -- /abs/path/filmcraft/target/release/filmcraf
 ```
 
 ```json
-{ "mcpServers": { "filmcraft": { "command": "/abs/path/filmcraft-cli", "args": ["mcp", "--bridge", "127.0.0.1:9876"] } } }
+{ "mcpServers": { "filmcraft": { "command": "/abs/path/filmcraft-cli", "args": ["mcp", "--bridge", "127.0.0.1:9876"], "env": { "FILMCRAFT_CONTROL_TOKEN_FILE": "/home/you/.config/filmcraft/control-token" } } } }
 ```
+
+Headless stdio (`filmcraft-cli mcp --demo`) needs no token. Prefer it when you are not driving the live window.
 
 ### Tools
 
@@ -57,11 +61,12 @@ Typical loop: `project_inspect` / `sequence_inspect` → get ids → `command_ru
 
 ## 2. Control channel
 
-`filmcraft --control 9876` (or `FILMCRAFT_CONTROL_PORT=9876`) listens on `127.0.0.1` only. Send one
-JSON request per line and get one JSON reply per line. Full method table:
-[control-protocol.md](control-protocol.md).
+`filmcraft --control 9876` (or `FILMCRAFT_CONTROL_PORT=9876`) listens on `127.0.0.1` only. The first
+line authenticates; later lines are one JSON request and one JSON reply. Full method table:
+[control-protocol.md](control-protocol.md). Tokens: [SECURITY.md](../SECURITY.md).
 
 ```jsonc
+{"id":1,"method":"auth","params":{"token":"<64 hex from the token file>"}}
 {"id":1,"method":"engine.commands"}
 {"id":2,"method":"engine.execute","params":{"command":"file.openDemoProject"}}
 {"id":3,"method":"engine.execute","params":{"command":"playhead.set","params":{"seconds":2}}}
@@ -77,11 +82,12 @@ Replies look like `{"id":4,"ok":true,"result":{"cuts":2}}` or `{"id":7,"ok":fals
 Minimal client:
 
 ```python
-import json, socket
+import json, os, socket
 s = socket.create_connection(("127.0.0.1", 9876)); f = s.makefile("rw")
 def call(method, **params):
     f.write(json.dumps({"id": 1, "method": method, "params": params}) + "\n"); f.flush()
     return json.loads(f.readline())
+print(call("auth", token=open(os.path.expanduser("~/.config/filmcraft/control-token")).read().strip()))
 print(call("engine.execute", command="sequence.inspect"))
 ```
 
@@ -113,7 +119,7 @@ filmcraft-cli --project p.fcproj export out --preset "YouTube 1080p Full HD" --s
 filmcraft-cli export --list-presets prores       # built-in + user presets (--data-dir for another library)
 filmcraft-cli --project p.fcproj exec export.queue.add preset="Apple ProRes 422 HQ" path=renders/ start=true wait=true
 echo '{"id":"file.newBin","params":{"name":"Selects"}}' | filmcraft-cli --project p.fcproj --save run -
-filmcraft-cli --bridge 127.0.0.1:9876 exec window.workspace.color   # the running app
+filmcraft-cli --bridge 127.0.0.1:9876 --control-token-file ~/.config/filmcraft/control-token exec window.workspace.color
 ```
 
 `key=value` values are parsed as JSON when they can be (`3.5`, `true`, `[1,2]`), otherwise taken as
@@ -125,7 +131,7 @@ strings; dotted keys nest (`color.r=1`). `run` prints one JSON line per command
 
 For any UI change, look at the result:
 
-1. `cargo run --release -p filmcraft -- --control 9876`
+1. `cargo run --release -p filmcraft -- --control 9876 --control-token-file ~/.config/filmcraft/control-token`
 2. Drive the feature through the control channel or the MCP bridge: commands, then clicks and drags
    by automation id.
 3. Assert on `ui.inspect`, `ui.elements` and `sequence.inspect`.
