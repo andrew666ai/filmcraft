@@ -143,8 +143,8 @@ impl FilmcraftMcp {
     pub fn headless(session: Session) -> Self {
         Self { backend: Arc::new(Backend::Headless(Arc::new(Mutex::new(session)))), tool_router: Self::tool_router() }
     }
-    pub fn bridge(addr: &str) -> Result<Self, AutomationError> {
-        Ok(Self { backend: Arc::new(Backend::Bridge(Arc::new(BridgeClient::new(addr)?))), tool_router: Self::tool_router() })
+    pub fn bridge(addr: &str, token: &str) -> Result<Self, AutomationError> {
+        Ok(Self { backend: Arc::new(Backend::Bridge(Arc::new(BridgeClient::new(addr, token)?))), tool_router: Self::tool_router() })
     }
 
     pub async fn serve_stdio(self) -> Result<(), AutomationError> {
@@ -181,7 +181,7 @@ impl FilmcraftMcp {
         match self.bridge_client() {
             Some(b) => wrap(b.call(method, params).await),
             None => Ok(fail(
-                "this tool drives the live app: run `filmcraft-cli mcp --bridge 127.0.0.1:<port>` with the app started as `filmcraft --control <port>`",
+                "this tool drives the live app: run `filmcraft-cli mcp --bridge 127.0.0.1:<port>` with the app started as `filmcraft --control <port>` and the same bearer token (`--control-token-file` or FILMCRAFT_CONTROL_TOKEN_FILE). Headless stdio MCP does not use that token.",
             )),
         }
     }

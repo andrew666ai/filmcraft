@@ -28,7 +28,7 @@ macOS.
 ```sh
 cargo run --release -p filmcraft                      # desktop app with the demo project
 cargo run --release -p filmcraft -- --empty           # start without the demo project
-cargo run --release -p filmcraft -- --control 9876    # plus the JSON-lines control server
+cargo run --release -p filmcraft -- --control 9876 --control-token-file ~/.config/filmcraft/control-token
 cargo run --release -p filmcraft -- a.mp4 b.wav       # import media (or open a .fcproj)
 cargo run --release -p filmcraft-cli -- commands      # list engine commands
 cargo run --release -p filmcraft-cli -- render --demo --seconds 3 --out frame.png
@@ -36,7 +36,7 @@ cargo run --release -p filmcraft-cli -- mcp --demo    # headless MCP server on s
 cargo xtask web --serve 8765                          # the web app on http://127.0.0.1:8765/ (docs/web.md)
 ```
 
-`FILMCRAFT_CONTROL_PORT=9876` works like `--control 9876`, and `FILMCRAFT_CPU_COMPOSITE=1`
+`FILMCRAFT_CONTROL_PORT=9876` works like `--control 9876` (the listener still requires a bearer token; see [SECURITY.md](../SECURITY.md)), and `FILMCRAFT_CPU_COMPOSITE=1`
 disables the GPU compositor.
 
 Dev builds compile dependencies at `opt-level = 2` and workspace crates at `opt-level = 1`. For

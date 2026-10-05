@@ -223,7 +223,7 @@ Import merges the document's bins, media and sequences into your project as one 
 Every menu item, button, slider and drag in FilmCraft is a **command** with an id, typed parameters and an enabled state. There are about 135 engine commands so far, with the rest of Premiere's catalogue on the way. The UI, the CLI, a JSON control channel and an **MCP server** all dispatch the same commands, so Claude or any agent can cut, trim, grade, mix and export exactly the way a person does. The UI can also be driven at the level of mouse and keyboard: every widget has an automation id, and agents can click, drag, type and take screenshots.
 
 ```jsonc
-// over the control channel (JSON lines on TCP) or as MCP tool calls
+// MCP tool calls on stdio, or the loopback control channel after `auth` (SECURITY.md)
 {"method": "engine.execute", "params": {"command": "timeline.place",
   "params": {"item": 1, "track": "V1", "seconds": 0, "sourceIn": 284298240000000, "duration": 1270080000000}}}
 {"method": "engine.execute", "params": {"command": "effects.setParam",
@@ -247,7 +247,7 @@ The trailer and the grades in these screenshots were built exactly this way, by 
 
 ```sh
 cargo run --release -p filmcraft                           # the desktop app, with a demo project
-cargo run --release -p filmcraft -- --control 9876         # plus the JSON-lines control server
+cargo run --release -p filmcraft -- --control 9876 --control-token-file ~/.config/filmcraft/control-token
 cargo run --release -p filmcraft-cli -- commands           # list every engine command
 cargo run --release -p filmcraft-cli -- mcp                # MCP server (headless)
 ```
@@ -264,6 +264,7 @@ The control protocol is documented in [docs/control-protocol.md](docs/control-pr
 | [docs/testing.md](docs/testing.md) | Unit, property and ffmpeg-oracle tests, accuracy criteria, benchmarks |
 | [docs/agents.md](docs/agents.md) | Driving FilmCraft over MCP and the control channel; how agents develop it |
 | [docs/control-protocol.md](docs/control-protocol.md) | Control-channel and MCP reference |
+| [SECURITY.md](SECURITY.md) | Loopback control token, MCP stdio, and request budgets |
 | [docs/project-files.md](docs/project-files.md) | `.fcproj` format, schema migrations, auto-save and crash recovery |
 | [docs/graphics.md](docs/graphics.md) · [docs/captions.md](docs/captions.md) | Text engine, graphic clips and tools; caption tracks and formats |
 | [ROADMAP.md](ROADMAP.md) | Honest assessment, what's missing, milestones and estimates |

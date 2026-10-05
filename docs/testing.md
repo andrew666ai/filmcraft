@@ -210,7 +210,7 @@ advance real time). Use `Driver` for new UI regressions: `d.exec(command, params
 For visual work, drive the real app:
 
 ```sh
-cargo run --release -p filmcraft -- --control 9876
+cargo run --release -p filmcraft -- --control 9876 --control-token-file ~/.config/filmcraft/control-token
 ```
 
 Then script it over the control channel or MCP: run commands, click by automation id,

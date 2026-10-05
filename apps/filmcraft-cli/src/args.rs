@@ -7,6 +7,8 @@ const VALUED: &[&str] = &[
     "--project",
     "--save-as",
     "--bridge",
+    "--control-token",
+    "--control-token-file",
     "--format",
     "--scale",
     "--quality",
